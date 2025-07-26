@@ -56,3 +56,6 @@ add_shortcode('total_average_rating', function ($atts) {
 add_shortcode('pricerange', function ($atts) {
     return mmbpg_get_meta_shortcode('pricerange', $atts);
 });
+add_shortcode('judul', function () {
+    return esc_html(get_the_title());
+});
