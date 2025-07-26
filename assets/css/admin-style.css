@@ -8,6 +8,10 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  min-height: 50px;
 }
 .mmbpg-wrapper .mmbpg-image-gallery .image-container {
   position: relative;
@@ -24,7 +28,7 @@
   position: absolute;
   top: -5px;
   right: -5px;
-  background: red;
+  background: #d63638;
   color: white;
   border-radius: 50%;
   width: 20px;
@@ -34,17 +38,55 @@
   cursor: pointer;
   font-weight: bold;
 }
+
+/* Tombol Aksi */
+.mmbpg-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-top: 1px solid #ddd;
+}
+.mmbpg-actions .button {
+  padding: 10px 20px !important;
+  height: auto !important;
+  font-size: 14px;
+}
+.mmbpg-actions .button-save {
+  background-color: #4caf50; /* Hijau */
+  border-color: #4caf50;
+  color: white;
+}
+.mmbpg-actions .button-save:hover {
+  background-color: #45a049;
+  border-color: #45a049;
+  color: white;
+}
+.mmbpg-actions .button-reset {
+  background-color: #f44336; /* Merah */
+  border-color: #f44336;
+  color: white;
+}
+.mmbpg-actions .button-reset:hover {
+  background-color: #d32f2f;
+  border-color: #d32f2f;
+  color: white;
+}
+
+/* Progress Bar */
 .mmbpg-progress-bar-container {
   width: 100%;
   background-color: #f3f3f3;
   border: 1px solid #ccc;
   border-radius: 5px;
-  margin-bottom: 20px;
+  margin-top: 20px;
 }
 .mmbpg-progress-bar {
   width: 0%;
   height: 30px;
-  background-color: #4caf50;
+  background-color: #0073aa;
   text-align: center;
   line-height: 30px;
   color: white;
@@ -56,8 +98,39 @@
   text-align: center;
   font-style: italic;
   color: #555;
+  word-break: break-all;
 }
+
 #mmbpg-form.processing {
   opacity: 0.6;
   pointer-events: none;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 782px) {
+  .mmbpg-wrapper .form-table th,
+  .mmbpg-wrapper .form-table td {
+    display: block;
+    width: 100%;
+    padding: 10px 0;
+  }
+  .mmbpg-wrapper .form-table th {
+    font-weight: 600;
+  }
+  .mmbpg-wrapper .large-text,
+  .mmbpg-wrapper .regular-text,
+  .mmbpg-wrapper textarea {
+    width: 100%;
+  }
+  .mmbpg-wrapper .mmbpg-datepicker {
+    display: block;
+    margin-bottom: 10px;
+  }
+  .mmbpg-actions {
+    flex-direction: column;
+  }
+  .mmbpg-actions .button {
+    width: 100%;
+    text-align: center;
+  }
 }

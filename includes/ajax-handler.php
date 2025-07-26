@@ -1,17 +1,83 @@
 <?php
 if (! defined('ABSPATH')) exit;
 
+// Hook untuk menyimpan pengaturan form
+add_action('wp_ajax_mmbpg_save_settings', 'mmbpg_handle_save_settings');
+
+// Hook untuk menyimpan opsi uninstall
+add_action('wp_ajax_mmbpg_save_uninstall_setting', 'mmbpg_handle_save_uninstall_setting');
+
+// Hook untuk proses generate post (tidak berubah banyak, hanya cara penerimaan data)
 add_action('wp_ajax_mmbpg_start_generation', 'mmbpg_handle_ajax_request');
+
+
+function mmbpg_handle_save_settings()
+{
+    check_ajax_referer('mmbpg_ajax_nonce', 'nonce');
+    if (! current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Anda tidak punya izin.']);
+    }
+
+    global $wpdb;
+    $table_name = MMBPG_TABLE_NAME;
+
+    $settings = isset($_POST['settings']) ? $_POST['settings'] : [];
+
+    // Sanitasi data
+    $data = [
+        'local_business_target' => sanitize_textarea_field($settings['local_business_target'] ?? ''),
+        'post_title'            => sanitize_text_field($settings['post_title'] ?? ''),
+        'post_content'          => wp_kses_post($settings['post_content'] ?? ''),
+        'featured_images'       => sanitize_text_field($settings['featured_images'] ?? ''),
+        'start_date'            => sanitize_text_field($settings['start_date'] ?? ''),
+        'end_date'              => sanitize_text_field($settings['end_date'] ?? ''),
+        'post_category'         => intval($settings['post_category'] ?? 0),
+        'post_tags'             => sanitize_textarea_field($settings['post_tags'] ?? ''),
+        'seo_lb_phone'          => sanitize_text_field($settings['seo_lb_phone'] ?? ''),
+        'disable_comments'      => ($settings['disable_comments'] ?? '0') === '1' ? 1 : 0,
+    ];
+
+    // Reset akan mengirim data kosong, kita perlu menangani ini
+    if (empty(array_filter($data))) {
+        // Jika semua data kosong, kita hapus isi row (kecuali default)
+        $data['seo_lb_phone'] = '0822-3356-6320';
+        $data['disable_comments'] = 1;
+    }
+
+    $where = ['id' => 1];
+
+    $result = $wpdb->update($table_name, $data, $where);
+
+    if ($result === false) {
+        wp_send_json_error(['message' => 'Gagal menyimpan ke database.']);
+    }
+
+    wp_send_json_success();
+}
+
+function mmbpg_handle_save_uninstall_setting()
+{
+    check_ajax_referer('mmbpg_ajax_nonce', 'nonce');
+    if (! current_user_can('manage_options')) {
+        wp_send_json_error();
+    }
+
+    $value = sanitize_text_field($_POST['value']);
+    update_option('mmbpg_erase_data_on_uninstall', $value);
+    wp_send_json_success();
+}
+
 
 function mmbpg_handle_ajax_request()
 {
-    // 1. Verifikasi Keamanan
+    // Fungsi ini tetap sama seperti sebelumnya, karena datanya kini dikirim lengkap setiap kali
+    // ... (kode dari versi sebelumnya bisa di-copy paste ke sini tanpa perubahan) ...
+    // Pastikan menerima data dengan benar:
     check_ajax_referer('mmbpg_ajax_nonce', 'nonce');
     if (! current_user_can('publish_posts')) {
         wp_send_json_error(['message' => 'Anda tidak memiliki izin untuk mempublikasikan post.']);
     }
 
-    // 2. Ambil dan Sanitasi Data dari POST
     $params = [
         'index'                 => isset($_POST['index']) ? intval($_POST['index']) : 0,
         'local_business_target' => isset($_POST['local_business_target']) ? sanitize_textarea_field($_POST['local_business_target']) : '',
@@ -26,7 +92,6 @@ function mmbpg_handle_ajax_request()
         'disable_comments'      => isset($_POST['disable_comments']) && $_POST['disable_comments'] === '1' ? 'closed' : 'open',
     ];
 
-    // 3. Proses satu baris data lokasi
     $locations = array_filter(explode("\n", $params['local_business_target']));
     if (!isset($locations[$params['index']])) {
         wp_send_json_error(['message' => 'Index lokasi tidak valid.']);
@@ -39,35 +104,22 @@ function mmbpg_handle_ajax_request()
     $provinsi  = isset($location_parts[1]) ? $location_parts[1] : '';
     $kodepos   = isset($location_parts[2]) ? $location_parts[2] : '';
 
-    // 4. Generate Konten Unik (Spintax & Placeholders)
     $processed_title = mmbpg_spintax_process($params['post_title']);
     $processed_title = str_replace(['[kota]', '[provinsi]'], [$kota, $provinsi], $processed_title);
-
     $processed_content = mmbpg_spintax_process($params['post_content']);
 
-    // 5. Generate Data Acak
     $random_post_date = mmbpg_get_random_date($params['start_date'], $params['end_date']);
     $random_image_id = !empty($params['featured_images']) ? $params['featured_images'][array_rand($params['featured_images'])] : 0;
 
-    // Data untuk custom fields
-    $alamat = sprintf(
-        'Jl. %s No.%d, %s, %s, %s, Indonesia',
-        mmbpg_get_random_street(),
-        rand(1, 300),
-        $kota,
-        $provinsi,
-        $kodepos
-    );
+    $alamat = sprintf('Jl. %s No.%d, %s, %s, %s, Indonesia', mmbpg_get_random_street(), rand(1, 300), $kota, $provinsi, $kodepos);
     $author_review_name = mmbpg_get_random_name();
     $author_rating      = mmbpg_get_random_float(4.5, 5.0);
     $total_review       = rand(2, 1500);
     $total_avg_rating   = mmbpg_get_random_float(4.5, 5.0);
     $pricerange         = '$-$$';
 
-    // Jeda 3 detik
     sleep(3);
 
-    // 6. Buat Post Baru
     $post_data = [
         'post_title'    => $processed_title,
         'post_content'  => $processed_content,
@@ -81,12 +133,10 @@ function mmbpg_handle_ajax_request()
     ];
 
     $post_id = wp_insert_post($post_data, true);
-
     if (is_wp_error($post_id)) {
         wp_send_json_error(['message' => $post_id->get_error_message()]);
     }
 
-    // 7. Set Taxonomy (Tags) dan Featured Image
     if (!empty($params['post_tags'])) {
         wp_set_post_tags($post_id, $params['post_tags'], true);
     }
@@ -94,7 +144,6 @@ function mmbpg_handle_ajax_request()
         set_post_thumbnail($post_id, $random_image_id);
     }
 
-    // 8. Set Custom Fields
     update_post_meta($post_id, 'seo_kota', $kota);
     update_post_meta($post_id, 'seo_provinsi', $provinsi);
     update_post_meta($post_id, 'seo_kodepos', $kodepos);
@@ -106,12 +155,6 @@ function mmbpg_handle_ajax_request()
     update_post_meta($post_id, 'seo_total_average_rating', $total_avg_rating);
     update_post_meta($post_id, 'pricerange', $pricerange);
 
-    // 9. Kirim Respon Sukses
-    $message = sprintf(
-        __('Post #%d "%s" berhasil dibuat untuk lokasi %s.', 'mm-bulk-post-generator'),
-        $post_id,
-        $processed_title,
-        $kota
-    );
+    $message = sprintf(__('Post #%d "%s" berhasil dibuat untuk lokasi %s.', 'mm-bulk-post-generator'), $post_id, $processed_title, $kota);
     wp_send_json_success(['message' => $message]);
 }

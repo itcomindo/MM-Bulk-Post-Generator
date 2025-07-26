@@ -1,157 +1,166 @@
 <?php
+// Mengambil data pengaturan yang tersimpan untuk mengisi form
+global $wpdb;
+$settings = $wpdb->get_row("SELECT * FROM " . MMBPG_TABLE_NAME . " WHERE id = 1", ARRAY_A);
 
-/**
- *
- * Silence is golden
- */
-
-defined('ABSPATH') || die('No script kiddies please!');
+// Menetapkan nilai default jika tidak ada data
+$local_business_target = $settings['local_business_target'] ?? '';
+$post_title = $settings['post_title'] ?? '';
+$post_content = $settings['post_content'] ?? '';
+$featured_images = $settings['featured_images'] ?? '';
+$start_date = $settings['start_date'] ?? '';
+$end_date = $settings['end_date'] ?? '';
+$selected_category = $settings['post_category'] ?? 0;
+$post_tags = $settings['post_tags'] ?? '';
+$seo_lb_phone = $settings['seo_lb_phone'] ?? '0822-3356-6320';
+$disable_comments = isset($settings['disable_comments']) ? (bool)$settings['disable_comments'] : true;
+$erase_on_uninstall = get_option('mmbpg_erase_data_on_uninstall', 'no');
 ?>
 <div class="wrap mmbpg-wrapper">
     <h1><?php _e('MM Bulk Post Generator', 'mm-bulk-post-generator'); ?></h1>
-    <p><?php _e('Gunakan form di bawah ini untuk membuat post secara massal dengan data Local Business.', 'mm-bulk-post-generator'); ?></p>
+    <p><?php _e('Gunakan form di bawah ini untuk menyimpan template dan membuat post secara massal.', 'mm-bulk-post-generator'); ?></p>
+
+    <div id="mmbpg-notice" class="notice" style="display:none;"></div>
 
     <form id="mmbpg-form">
-        <div id="mmbpg-notice" class="notice" style="display:none;"></div>
-
-        <div class="mmbpg-progress-bar-container" style="display:none;">
-            <div class="mmbpg-progress-bar"></div>
-            <div class="mmbpg-progress-status"></div>
-        </div>
-
         <table class="form-table">
-            <!-- 1. Local Business Target -->
+            <!-- Isi Form seperti sebelumnya, namun valuenya diambil dari variabel PHP di atas -->
             <tr valign="top">
                 <th scope="row">
-                    <label for="mmbpg_local_business_target"><?php _e('Local Business Target', 'mm-bulk-post-generator'); ?></label>
-                    <span class="required">*</span>
+                    <label for="mmbpg_local_business_target"><?php _e('Local Business Target', 'mm-bulk-post-generator'); ?></label><span class="required">*</span>
                 </th>
                 <td>
-                    <textarea id="mmbpg_local_business_target" name="mmbpg_local_business_target" class="large-text required-field" rows="10" placeholder="Contoh:
-Bandung,Jawa Barat,45457
-Kota Tangerang,Banten,15156"></textarea>
-                    <p class="description"><?php _e('Masukan data dengan format: [Kota],[Provinsi],[KodePos]. Pisahkan setiap lokasi dengan baris baru (Enter).', 'mm-bulk-post-generator'); ?></p>
+                    <textarea id="mmbpg_local_business_target" name="local_business_target" class="large-text required-field" rows="10" placeholder="Contoh:
+Bandung,Jawa Barat,45457"><?php echo esc_textarea($local_business_target); ?></textarea>
+                    <p class="description"><?php _e('Format: [Kota],[Provinsi],[KodePos]. Pisahkan setiap lokasi dengan baris baru.', 'mm-bulk-post-generator'); ?></p>
                 </td>
             </tr>
 
-            <!-- 2. Post Title -->
             <tr valign="top">
                 <th scope="row">
-                    <label for="mmbpg_post_title"><?php _e('Judul Post', 'mm-bulk-post-generator'); ?></label>
-                    <span class="required">*</span>
+                    <label for="mmbpg_post_title"><?php _e('Judul Post', 'mm-bulk-post-generator'); ?></label><span class="required">*</span>
                 </th>
                 <td>
-                    <input type="text" id="mmbpg_post_title" name="mmbpg_post_title" class="large-text required-field" placeholder="{Jasa|Layanan} Pembuatan Website di [kota] [provinsi]">
-                    <p class="description"><?php _e('Gunakan format spintax. Gunakan placeholder [kota] dan [provinsi].', 'mm-bulk-post-generator'); ?></p>
+                    <input type="text" id="mmbpg_post_title" name="post_title" class="large-text required-field" value="<?php echo esc_attr($post_title); ?>" placeholder="{Jasa|Layanan} di [kota]">
+                    <p class="description"><?php _e('Gunakan spintax dan placeholder [kota], [provinsi].', 'mm-bulk-post-generator'); ?></p>
                 </td>
             </tr>
 
-            <!-- 3. Post Content -->
             <tr valign="top">
                 <th scope="row">
-                    <label for="mmbpg_post_content"><?php _e('Artikel', 'mm-bulk-post-generator'); ?></label>
-                    <span class="required">*</span>
+                    <label for="mmbpg_post_content"><?php _e('Artikel', 'mm-bulk-post-generator'); ?></label><span class="required">*</span>
                 </th>
                 <td>
-                    <?php
-                    $content = '';
-                    $editor_id = 'mmbpg_post_content';
-                    $settings = [
-                        'textarea_name' => 'mmbpg_post_content',
-                        'media_buttons' => true,
-                        'textarea_rows' => 15,
-                        'tinymce'       => true,
-                    ];
-                    wp_editor($content, $editor_id, $settings);
-                    ?>
+                    <?php wp_editor($post_content, 'mmbpg_post_content', ['textarea_name' => 'post_content', 'textarea_rows' => 15, 'tinymce' => true]); ?>
                     <p class="description"><?php _e('Gunakan format spintax di dalam konten.', 'mm-bulk-post-generator'); ?></p>
                 </td>
             </tr>
 
-            <!-- 4. Featured Images -->
             <tr valign="top">
                 <th scope="row">
-                    <label><?php _e('Featured Images', 'mm-bulk-post-generator'); ?></label>
-                    <span class="required">*</span>
+                    <label><?php _e('Featured Images', 'mm-bulk-post-generator'); ?></label><span class="required">*</span>
                 </th>
                 <td>
-                    <div class="mmbpg-image-gallery"></div>
-                    <input type="hidden" id="mmbpg_featured_images" name="mmbpg_featured_images" class="required-field">
+                    <div class="mmbpg-image-gallery">
+                        <?php
+                        if (!empty($featured_images)) {
+                            $image_ids = explode(',', $featured_images);
+                            foreach ($image_ids as $image_id) {
+                                $image_url = wp_get_attachment_image_url($image_id, 'thumbnail');
+                                if ($image_url) {
+                                    echo '<div class="image-container" data-id="' . esc_attr($image_id) . '">';
+                                    echo '<img src="' . esc_url($image_url) . '" />';
+                                    echo '<span class="remove-image">x</span>';
+                                    echo '</div>';
+                                }
+                            }
+                        }
+                        ?>
+                    </div>
+                    <input type="hidden" id="mmbpg_featured_images" name="featured_images" class="required-field" value="<?php echo esc_attr($featured_images); ?>">
                     <button type="button" class="button" id="mmbpg-upload-image-button"><?php _e('Pilih Gambar', 'mm-bulk-post-generator'); ?></button>
                     <p class="description"><?php _e('Pilih satu atau lebih gambar. Satu gambar akan dipilih secara acak untuk setiap post.', 'mm-bulk-post-generator'); ?></p>
                 </td>
             </tr>
 
-            <!-- 5. Post Published Date -->
             <tr valign="top">
                 <th scope="row"><?php _e('Jadwalkan Post', 'mm-bulk-post-generator'); ?><span class="required">*</span></th>
                 <td>
                     <label for="mmbpg_start_date"><?php _e('Mulai dari:', 'mm-bulk-post-generator'); ?></label>
-                    <input type="text" id="mmbpg_start_date" name="mmbpg_start_date" class="mmbpg-datepicker required-field" autocomplete="off">
+                    <input type="text" id="mmbpg_start_date" name="start_date" class="mmbpg-datepicker required-field" autocomplete="off" value="<?php echo esc_attr($start_date); ?>">
 
-                    <label for="mmbpg_end_date" style="margin-left: 20px;"><?php _e('Sampai dengan:', 'mm-bulk-post-generator'); ?></label>
-                    <input type="text" id="mmbpg_end_date" name="mmbpg_end_date" class="mmbpg-datepicker required-field" autocomplete="off">
-                    <p class="description"><?php _e('Post akan dipublikasikan secara acak di antara rentang tanggal ini.', 'mm-bulk-post-generator'); ?></p>
+                    <label for="mmbpg_end_date"><?php _e('Sampai dengan:', 'mm-bulk-post-generator'); ?></label>
+                    <input type="text" id="mmbpg_end_date" name="end_date" class="mmbpg-datepicker required-field" autocomplete="off" value="<?php echo esc_attr($end_date); ?>">
                 </td>
             </tr>
 
-            <!-- 6. Category -->
             <tr valign="top">
                 <th scope="row"><?php _e('Kategori Post', 'mm-bulk-post-generator'); ?><span class="required">*</span></th>
                 <td>
-                    <?php
-                    $categories = get_categories(['hide_empty' => 0]);
-                    if (! empty($categories)) {
-                        echo '<fieldset id="mmbpg_post_category" class="required-field-radio">';
-                        foreach ($categories as $category) {
-                            printf(
-                                '<label><input type="radio" name="mmbpg_post_category" value="%d"> %s</label><br>',
-                                esc_attr($category->term_id),
-                                esc_html($category->name)
-                            );
+                    <fieldset id="mmbpg_post_category" class="required-field-radio">
+                        <?php
+                        $categories = get_categories(['hide_empty' => 0]);
+                        if (!empty($categories)) {
+                            foreach ($categories as $category) {
+                                printf(
+                                    '<label><input type="radio" name="post_category" value="%d" %s> %s</label><br>',
+                                    esc_attr($category->term_id),
+                                    checked($selected_category, $category->term_id, false),
+                                    esc_html($category->name)
+                                );
+                            }
+                        } else {
+                            _e('Tidak ada kategori. Buat satu terlebih dahulu.', 'mm-bulk-post-generator');
                         }
-                        echo '</fieldset>';
-                    } else {
-                        _e('Tidak ada kategori ditemukan. Silakan buat satu terlebih dahulu.', 'mm-bulk-post-generator');
-                    }
-                    ?>
+                        ?>
+                    </fieldset>
                 </td>
             </tr>
 
-            <!-- 7. Tags -->
             <tr valign="top">
-                <th scope="row">
-                    <label for="mmbpg_post_tags"><?php _e('Tag Post', 'mm-bulk-post-generator'); ?></label>
-                </th>
+                <th scope="row"><label for="mmbpg_post_tags"><?php _e('Tag Post', 'mm-bulk-post-generator'); ?></label></th>
                 <td>
-                    <textarea id="mmbpg_post_tags" name="mmbpg_post_tags" class="large-text" rows="3" placeholder="Jasa, Layanan, Web Developer"></textarea>
-                    <p class="description"><?php _e('Pisahkan setiap tag dengan koma.', 'mm-bulk-post-generator'); ?></p>
+                    <textarea id="mmbpg_post_tags" name="post_tags" class="large-text" rows="3" placeholder="Jasa, Layanan"><?php echo esc_textarea($post_tags); ?></textarea>
                 </td>
             </tr>
 
-            <!-- 8. Nomor Telepon -->
             <tr valign="top">
-                <th scope="row">
-                    <label for="mmbpg_seo_lb_phone"><?php _e('Nomor Telepon', 'mm-bulk-post-generator'); ?></label>
-                </th>
+                <th scope="row"><label for="mmbpg_seo_lb_phone"><?php _e('Nomor Telepon', 'mm-bulk-post-generator'); ?></label></th>
                 <td>
-                    <input type="text" id="mmbpg_seo_lb_phone" name="mmbpg_seo_lb_phone" class="regular-text" value="0822-3356-6320">
+                    <input type="text" id="mmbpg_seo_lb_phone" name="seo_lb_phone" class="regular-text" value="<?php echo esc_attr($seo_lb_phone); ?>">
                 </td>
             </tr>
 
-            <!-- 9. Disable Comments -->
             <tr valign="top">
                 <th scope="row"><?php _e('Opsi Komentar', 'mm-bulk-post-generator'); ?></th>
                 <td>
-                    <label>
-                        <input type="checkbox" name="mmbpg_disable_comments" value="1" checked>
-                        <?php _e('Nonaktifkan komentar untuk semua post yang dibuat', 'mm-bulk-post-generator'); ?>
-                    </label>
+                    <label><input type="checkbox" name="disable_comments" value="1" <?php checked($disable_comments); ?>> <?php _e('Nonaktifkan komentar', 'mm-bulk-post-generator'); ?></label>
+                </td>
+            </tr>
+
+            <tr valign="top">
+                <th scope="row"><?php _e('Pengaturan Plugin', 'mm-bulk-post-generator'); ?></th>
+                <td>
+                    <label><input type="checkbox" id="mmbpg_erase_data_on_uninstall" name="erase_on_uninstall" value="yes" <?php checked($erase_on_uninstall, 'yes'); ?>> <?php _e('Hapus semua data plugin ini saat uninstall.', 'mm-bulk-post-generator'); ?></label>
+                    <p class="description"><?php _e('Peringatan: Aksi ini tidak dapat dibatalkan. Semua template yang Anda simpan akan terhapus permanen.', 'mm-bulk-post-generator'); ?></p>
                 </td>
             </tr>
 
         </table>
 
-        <?php submit_button(__('START GENERATE', 'mm-bulk-post-generator'), 'primary', 'mmbpg-start-button', true, ['disabled' => 'disabled']); ?>
+        <!-- Tombol Aksi -->
+        <div class="mmbpg-actions">
+            <button id="mmbpg-start-button" class="button button-primary" disabled><?php _e('START GENERATE', 'mm-bulk-post-generator'); ?></button>
+            <button type="button" id="mmbpg-save-button" class="button button-save"><?php _e('Simpan Pengaturan', 'mm-bulk-post-generator'); ?></button>
+            <button type="button" id="mmbpg-reset-button" class="button button-reset"><?php _e('Reset Form', 'mm-bulk-post-generator'); ?></button>
+            <button type="button" id="mmbpg-undo-reset-button" class="button button-secondary" style="display:none;"><?php _e('Undo Reset', 'mm-bulk-post-generator'); ?></button>
+        </div>
+
+        <!-- Progress Bar (dipindahkan ke bawah) -->
+        <div class="mmbpg-progress-bar-container" style="display:none;">
+            <div class="mmbpg-progress-bar"></div>
+            <div class="mmbpg-progress-status"></div>
+        </div>
+
     </form>
 </div>
