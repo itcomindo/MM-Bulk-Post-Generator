@@ -7,7 +7,7 @@ add_action('wp_ajax_mmbpg_save_settings', 'mmbpg_handle_save_settings');
 // Hook untuk menyimpan opsi uninstall
 add_action('wp_ajax_mmbpg_save_uninstall_setting', 'mmbpg_handle_save_uninstall_setting');
 
-// Hook untuk proses generate post (tidak berubah banyak, hanya cara penerimaan data)
+// Hook untuk proses generate post
 add_action('wp_ajax_mmbpg_start_generation', 'mmbpg_handle_ajax_request');
 
 
@@ -20,10 +20,9 @@ function mmbpg_handle_save_settings()
 
     global $wpdb;
     $table_name = MMBPG_TABLE_NAME;
-
     $settings = isset($_POST['settings']) ? $_POST['settings'] : [];
 
-    // Sanitasi data
+    // Sanitasi data termasuk field baru
     $data = [
         'local_business_target' => sanitize_textarea_field($settings['local_business_target'] ?? ''),
         'post_title'            => sanitize_text_field($settings['post_title'] ?? ''),
@@ -35,21 +34,21 @@ function mmbpg_handle_save_settings()
         'post_tags'             => sanitize_textarea_field($settings['post_tags'] ?? ''),
         'seo_lb_phone'          => sanitize_text_field($settings['seo_lb_phone'] ?? ''),
         'disable_comments'      => ($settings['disable_comments'] ?? '0') === '1' ? 1 : 0,
+        'activate_schema_default' => ($settings['activate_schema_default'] ?? '0') === '1' ? 1 : 0,
     ];
 
-    // Reset akan mengirim data kosong, kita perlu menangani ini
-    if (empty(array_filter($data))) {
-        // Jika semua data kosong, kita hapus isi row (kecuali default)
-        $data['seo_lb_phone'] = '0822-3356-6320';
-        $data['disable_comments'] = 1;
+    // Tambah/Update kolom 'activate_schema_default' di DB jika belum ada
+    // Ini adalah praktek yang baik untuk pembaruan plugin
+    $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM {$table_name} LIKE %s", 'activate_schema_default'));
+    if (empty($column_exists)) {
+        $wpdb->query("ALTER TABLE {$table_name} ADD activate_schema_default TINYINT(1) NOT NULL DEFAULT 1");
     }
 
     $where = ['id' => 1];
-
     $result = $wpdb->update($table_name, $data, $where);
 
     if ($result === false) {
-        wp_send_json_error(['message' => 'Gagal menyimpan ke database.']);
+        wp_send_json_error(['message' => 'Gagal menyimpan ke database. Error: ' . $wpdb->last_error]);
     }
 
     wp_send_json_success();
@@ -63,33 +62,32 @@ function mmbpg_handle_save_uninstall_setting()
     }
 
     $value = sanitize_text_field($_POST['value']);
-    update_option('mmbpg_erase_data_on_uninstall', $value);
+    update_option('mmbpg_erase_data_on_uninstall', $value === 'yes' ? 'yes' : 'no');
     wp_send_json_success();
 }
 
 
 function mmbpg_handle_ajax_request()
 {
-    // Fungsi ini tetap sama seperti sebelumnya, karena datanya kini dikirim lengkap setiap kali
-    // ... (kode dari versi sebelumnya bisa di-copy paste ke sini tanpa perubahan) ...
-    // Pastikan menerima data dengan benar:
     check_ajax_referer('mmbpg_ajax_nonce', 'nonce');
     if (! current_user_can('publish_posts')) {
         wp_send_json_error(['message' => 'Anda tidak memiliki izin untuk mempublikasikan post.']);
     }
 
+    // Ambil data, termasuk setting global baru dari form
     $params = [
-        'index'                 => isset($_POST['index']) ? intval($_POST['index']) : 0,
-        'local_business_target' => isset($_POST['local_business_target']) ? sanitize_textarea_field($_POST['local_business_target']) : '',
-        'post_title'            => isset($_POST['post_title']) ? sanitize_text_field($_POST['post_title']) : '',
-        'post_content'          => isset($_POST['post_content']) ? wp_kses_post($_POST['post_content']) : '',
-        'featured_images'       => isset($_POST['featured_images']) ? array_map('intval', explode(',', sanitize_text_field($_POST['featured_images']))) : [],
-        'start_date'            => isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '',
-        'end_date'              => isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '',
-        'post_category'         => isset($_POST['post_category']) ? intval($_POST['post_category']) : 0,
-        'post_tags'             => isset($_POST['post_tags']) ? sanitize_text_field($_POST['post_tags']) : '',
-        'seo_lb_phone'          => isset($_POST['seo_lb_phone']) ? sanitize_text_field($_POST['seo_lb_phone']) : '',
-        'disable_comments'      => isset($_POST['disable_comments']) && $_POST['disable_comments'] === '1' ? 'closed' : 'open',
+        'index'                   => isset($_POST['index']) ? intval($_POST['index']) : 0,
+        'local_business_target'   => isset($_POST['local_business_target']) ? sanitize_textarea_field($_POST['local_business_target']) : '',
+        'post_title'              => isset($_POST['post_title']) ? sanitize_text_field($_POST['post_title']) : '',
+        'post_content'            => isset($_POST['post_content']) ? wp_kses_post($_POST['post_content']) : '',
+        'featured_images'         => isset($_POST['featured_images']) ? array_map('intval', explode(',', sanitize_text_field($_POST['featured_images']))) : [],
+        'start_date'              => isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '',
+        'end_date'                => isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '',
+        'post_category'           => isset($_POST['post_category']) ? intval($_POST['post_category']) : 0,
+        'post_tags'               => isset($_POST['post_tags']) ? sanitize_text_field($_POST['post_tags']) : '',
+        'seo_lb_phone'            => isset($_POST['seo_lb_phone']) ? sanitize_text_field($_POST['seo_lb_phone']) : '',
+        'disable_comments'        => isset($_POST['disable_comments']) && $_POST['disable_comments'] === '1' ? 'closed' : 'open',
+        'activate_schema_default' => isset($_POST['activate_schema_default']) && $_POST['activate_schema_default'] === '1' ? 'yes' : 'no',
     ];
 
     $locations = array_filter(explode("\n", $params['local_business_target']));
@@ -111,7 +109,7 @@ function mmbpg_handle_ajax_request()
     $random_post_date = mmbpg_get_random_date($params['start_date'], $params['end_date']);
     $random_image_id = !empty($params['featured_images']) ? $params['featured_images'][array_rand($params['featured_images'])] : 0;
 
-    $alamat = sprintf('Jl. %s No.%d, %s, %s, %s, Indonesia', mmbpg_get_random_street(), rand(1, 300), $kota, $provinsi, $kodepos);
+    $alamat = sprintf('%s No.%d, %s, %s, %s, Indonesia', mmbpg_get_random_street(), rand(1, 300), $kota, $provinsi, $kodepos);
     $author_review_name = mmbpg_get_random_name();
     $author_rating      = mmbpg_get_random_float(4.5, 5.0);
     $total_review       = rand(2, 1500);
@@ -154,6 +152,11 @@ function mmbpg_handle_ajax_request()
     update_post_meta($post_id, 'seo_total_review', $total_review);
     update_post_meta($post_id, 'seo_total_average_rating', $total_avg_rating);
     update_post_meta($post_id, 'pricerange', $pricerange);
+
+    // Set meta untuk aktivasi schema berdasarkan setting default dari form
+    if ($params['activate_schema_default'] === 'yes') {
+        update_post_meta($post_id, '_mmbpg_activate_schema', 'yes');
+    }
 
     $message = sprintf(__('Post #%d "%s" berhasil dibuat untuk lokasi %s.', 'mm-bulk-post-generator'), $post_id, $processed_title, $kota);
     wp_send_json_success(['message' => $message]);

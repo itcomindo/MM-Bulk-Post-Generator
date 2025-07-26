@@ -7,7 +7,7 @@ jQuery(document).ready(function ($) {
     // Menampilkan notifikasi
     function showNotice(message, type = 'success') {
         const noticeDiv = $('#mmbpg-notice');
-        noticeDiv.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type);
+        noticeDiv.removeClass('notice-success notice-error notice-warning notice-info').addClass('notice-' + type);
         noticeDiv.text(message).slideDown();
         setTimeout(() => noticeDiv.slideUp(), 5000);
     }
@@ -15,6 +15,8 @@ jQuery(document).ready(function ($) {
     // Mengambil semua data dari form
     function getFormData() {
         return {
+            activate_schema_default: $('input[name="activate_schema_default"]:checked').length > 0 ? '1' : '0',
+            disable_comments: $('input[name="disable_comments"]:checked').length > 0 ? '1' : '0',
             local_business_target: $('#mmbpg_local_business_target').val(),
             post_title: $('#mmbpg_post_title').val(),
             post_content: (typeof tinymce !== 'undefined' && tinymce.get('mmbpg_post_content')) ? tinymce.get('mmbpg_post_content').getContent() : $('#mmbpg_post_content').val(),
@@ -24,12 +26,13 @@ jQuery(document).ready(function ($) {
             post_category: $('input[name="post_category"]:checked').val() || 0,
             post_tags: $('#mmbpg_post_tags').val(),
             seo_lb_phone: $('#mmbpg_seo_lb_phone').val(),
-            disable_comments: $('input[name="disable_comments"]:checked').val() || '0'
         };
     }
 
     // Mengisi form dengan data
     function populateForm(data) {
+        $('input[name="activate_schema_default"]').prop('checked', data.activate_schema_default == '1');
+        $('input[name="disable_comments"]').prop('checked', data.disable_comments == '1');
         $('#mmbpg_local_business_target').val(data.local_business_target || '');
         $('#mmbpg_post_title').val(data.post_title || '');
         if (typeof tinymce !== 'undefined' && tinymce.get('mmbpg_post_content')) {
@@ -43,18 +46,8 @@ jQuery(document).ready(function ($) {
         $('input[name="post_category"]').val([data.post_category || 0]);
         $('#mmbpg_post_tags').val(data.post_tags || '');
         $('#mmbpg_seo_lb_phone').val(data.seo_lb_phone || '0822-3356-6320');
-        $('input[name="disable_comments"]').prop('checked', data.disable_comments == '1');
 
-        // Render ulang galeri gambar
-        $('.mmbpg-image-gallery').empty();
-        const imageIds = (data.featured_images || '').split(',').filter(id => id);
-        imageIds.forEach(id => {
-            // Kita butuh URL gambar, karena sudah diload di PHP, kita tidak bisa mendapatkannya lagi di sini
-            // Jadi, kita akan mengandalkan data yang sudah ada di HTML saat load halaman
-            // Untuk undo, kita butuh cara yang lebih baik. Mari kita simpan HTML-nya.
-            const imageHtml = undoState.galleryHtml || ''; // Gunakan HTML galeri yang disimpan
-            $('.mmbpg-image-gallery').html(imageHtml);
-        });
+        $('.mmbpg-image-gallery').html(undoState.galleryHtml || '');
 
         checkRequiredFields();
     }
@@ -68,7 +61,8 @@ jQuery(document).ready(function ($) {
         $('.mmbpg-image-gallery').empty();
         $('#mmbpg_featured_images').val('').trigger('change');
         $('input[name="post_category"]').prop('checked', false);
-        $('input[name="disable_comments"]').prop('checked', true);
+        $('input[name="activate_schema_default"]').prop('checked', true); // default to checked
+        $('input[name="disable_comments"]').prop('checked', true); // default to checked
         checkRequiredFields();
     }
 
@@ -91,7 +85,6 @@ jQuery(document).ready(function ($) {
 
     // --- EVENT HANDLERS ---
 
-    // Inisialisasi
     $('.mmbpg-datepicker').datepicker({ dateFormat: 'yy-mm-dd', onSelect: checkRequiredFields });
     $('#mmbpg-form').on('keyup change', 'input, textarea, select', checkRequiredFields);
     if (typeof tinymce !== 'undefined') {
@@ -101,13 +94,12 @@ jQuery(document).ready(function ($) {
             }
         });
     }
-    checkRequiredFields(); // Panggil saat load
+    checkRequiredFields();
 
     // Tombol SIMPAN
     $('#mmbpg-save-button').on('click', function () {
         const button = $(this);
         button.prop('disabled', true).text('Menyimpan...');
-
         const settingsData = getFormData();
 
         $.post(mmbpg_ajax_obj.ajax_url, {
@@ -120,6 +112,8 @@ jQuery(document).ready(function ($) {
             } else {
                 showNotice(response.data.message, 'error');
             }
+        }).fail(function () {
+            showNotice(mmbpg_ajax_obj.i18n.error_occurred, 'error');
         }).always(function () {
             button.prop('disabled', false).text('Simpan Pengaturan');
         });
@@ -128,15 +122,9 @@ jQuery(document).ready(function ($) {
     // Tombol RESET
     $('#mmbpg-reset-button').on('click', function () {
         if (!confirm(mmbpg_ajax_obj.i18n.confirm_reset)) return;
-
-        // Simpan state saat ini untuk undo
         undoState = getFormData();
-        undoState.galleryHtml = $('.mmbpg-image-gallery').html(); // Simpan HTML galeri
-
-        // Reset form
+        undoState.galleryHtml = $('.mmbpg-image-gallery').html();
         resetForm();
-
-        // Tampilkan notifikasi dan ubah tombol
         showNotice(mmbpg_ajax_obj.i18n.settings_reset, 'warning');
         $('#mmbpg-reset-button').hide();
         $('#mmbpg-undo-reset-button').show();
@@ -145,8 +133,7 @@ jQuery(document).ready(function ($) {
     // Tombol UNDO RESET
     $('#mmbpg-undo-reset-button').on('click', function () {
         populateForm(undoState);
-        undoState = {}; // Kosongkan state undo
-
+        undoState = {};
         $('#mmbpg-undo-reset-button').hide();
         $('#mmbpg-reset-button').show();
         showNotice('Reset dibatalkan.', 'info');
@@ -162,10 +149,7 @@ jQuery(document).ready(function ($) {
         });
     });
 
-    // Logika Media Uploader (Sama seperti sebelumnya, tapi menargetkan field name baru)
-    $('#mmbpg-upload-image-button').on('click', function (e) { /* ... (kode sama seperti sebelumnya) ... */ });
-    $('.mmbpg-image-gallery').on('click', '.remove-image', function () { /* ... (kode sama seperti sebelumnya) ... */ });
-    // --- KODE LENGKAP UNTUK MEDIA UPLOADER ---
+    // Logika Media Uploader
     let mediaUploader;
     $('#mmbpg-upload-image-button').on('click', function (e) {
         e.preventDefault();
@@ -175,8 +159,7 @@ jQuery(document).ready(function ($) {
         });
         mediaUploader.on('select', function () {
             const attachments = mediaUploader.state().get('selection').toJSON();
-            let image_ids = $('#mmbpg_featured_images').val() ? $('#mmbpg_featured_images').val().split(',') : [];
-            $('.mmbpg-image-gallery').empty();
+            let image_ids = $('#mmbpg_featured_images').val() ? $('#mmbpg_featured_images').val().split(',').filter(id => id) : [];
 
             attachments.forEach(function (attachment) {
                 if (!image_ids.includes(attachment.id.toString())) {
@@ -184,22 +167,20 @@ jQuery(document).ready(function ($) {
                 }
             });
 
-            image_ids = [...new Set(image_ids)]; // Pastikan unik
+            $('#mmbpg_featured_images').val(image_ids.join(','));
 
+            // Re-render gallery
+            $('.mmbpg-image-gallery').empty();
             image_ids.forEach(function (id) {
-                const attachment = attachments.find(att => att.id.toString() === id) || { id: id, sizes: { thumbnail: { url: '' } } };
-                // Jika gambar sudah ada sebelumnya, kita tidak punya URL-nya. Ini adalah kelemahan, tapi untuk kasus ini kita coba cari dari attachment yang baru dipilih
-                wp.media.attachment(id).fetch().done(function (fetchedAttachment) {
+                const attachment = attachments.find(att => att.id.toString() === id);
+                if (attachment) {
                     $('.mmbpg-image-gallery').append(
-                        `<div class="image-container" data-id="${id}">
-                            <img src="${fetchedAttachment.sizes.thumbnail.url}" />
-                            <span class="remove-image">x</span>
-                        </div>`
+                        `<div class="image-container" data-id="${id}"><img src="${attachment.sizes.thumbnail.url}" /><span class="remove-image">x</span></div>`
                     );
-                });
+                }
             });
 
-            $('#mmbpg_featured_images').val(image_ids.join(',')).trigger('change');
+            checkRequiredFields();
         });
         mediaUploader.open();
     });
@@ -212,21 +193,18 @@ jQuery(document).ready(function ($) {
         $('#mmbpg_featured_images').val(image_ids.join(',')).trigger('change');
         container.remove();
     });
-    // --- AKHIR KODE MEDIA UPLOADER ---
 
 
-    // Tombol START GENERATE (Dimodifikasi untuk auto-save)
+    // Tombol START GENERATE (Auto-save)
     $('#mmbpg-form').on('submit', function (e) {
         e.preventDefault();
 
-        // 1. Simpan pengaturan saat ini terlebih dahulu
         $.post(mmbpg_ajax_obj.ajax_url, {
             action: 'mmbpg_save_settings',
             nonce: mmbpg_ajax_obj.nonce,
             settings: getFormData()
         }).done(function (response) {
             if (response.success) {
-                // 2. Jika simpan berhasil, mulai proses generate
                 startGenerationProcess();
             } else {
                 showNotice('Gagal menyimpan pengaturan sebelum memulai. Proses dibatalkan.', 'error');
@@ -238,7 +216,6 @@ jQuery(document).ready(function ($) {
 
     function startGenerationProcess() {
         const form = $('#mmbpg-form');
-        const startButton = $('#mmbpg-start-button');
         const progressBarContainer = $('.mmbpg-progress-bar-container');
         const progressBar = $('.mmbpg-progress-bar');
         const progressStatus = $('.mmbpg-progress-status');
@@ -250,9 +227,7 @@ jQuery(document).ready(function ($) {
         progressStatus.text(mmbpg_ajax_obj.i18n.starting_process);
         $('#mmbpg-notice').hide();
 
-        // Ambil data untuk generasi (kita gunakan fungsi yang sama)
         const generationData = getFormData();
-
         const locations = generationData.local_business_target.split('\n').filter(line => line.trim() !== '');
         const total_posts = locations.length;
         let posts_processed = 0;
@@ -267,21 +242,12 @@ jQuery(document).ready(function ($) {
                 return;
             }
 
+            // Kirim semua data yang relevan dari form
             const ajaxData = {
                 action: 'mmbpg_start_generation',
                 nonce: mmbpg_ajax_obj.nonce,
                 index: index,
-                // Kirim semua data yang relevan
-                local_business_target: generationData.local_business_target,
-                post_title: generationData.post_title,
-                post_content: generationData.post_content,
-                featured_images: generationData.featured_images,
-                start_date: generationData.start_date,
-                end_date: generationData.end_date,
-                post_category: generationData.post_category,
-                post_tags: generationData.post_tags,
-                seo_lb_phone: generationData.seo_lb_phone,
-                disable_comments: generationData.disable_comments === '1' ? '1' : '0'
+                ...generationData
             };
 
             $.post(mmbpg_ajax_obj.ajax_url, ajaxData, function (response) {
@@ -296,7 +262,7 @@ jQuery(document).ready(function ($) {
                     $('.mmbpg-actions button').prop('disabled', false);
                     checkRequiredFields();
                     progressBarContainer.hide();
-                    showNotice(mmbpg_ajax_obj.i18n.error_occurred + ': ' + response.data.message, 'error');
+                    showNotice(mmbpg_ajax_obj.i18n.error_occurred + ': ' + (response.data.message || ''), 'error');
                 }
             }).fail(function () {
                 form.removeClass('processing');

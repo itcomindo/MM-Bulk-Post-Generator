@@ -1,3 +1,21 @@
+.mmbpg-wrapper .author-credit {
+  font-size: 13px;
+  font-weight: normal;
+  color: #555;
+  margin-left: 10px;
+}
+.mmbpg-wrapper .author-credit a {
+  text-decoration: none;
+}
+.mmbpg-wrapper .mmbpg-global-settings {
+  background-color: #f0f0f1;
+  border: 1px solid #c3c4c7;
+  padding: 1px 20px 10px;
+  margin-bottom: 25px;
+}
+.mmbpg-wrapper .mmbpg-global-settings h2 {
+  margin-top: 15px;
+}
 .mmbpg-wrapper .required {
   color: red;
   font-weight: bold;
@@ -38,8 +56,6 @@
   cursor: pointer;
   font-weight: bold;
 }
-
-/* Tombol Aksi */
 .mmbpg-actions {
   display: flex;
   gap: 10px;
@@ -55,7 +71,7 @@
   font-size: 14px;
 }
 .mmbpg-actions .button-save {
-  background-color: #4caf50; /* Hijau */
+  background-color: #4caf50;
   border-color: #4caf50;
   color: white;
 }
@@ -65,7 +81,7 @@
   color: white;
 }
 .mmbpg-actions .button-reset {
-  background-color: #f44336; /* Merah */
+  background-color: #f44336;
   border-color: #f44336;
   color: white;
 }
@@ -74,8 +90,6 @@
   border-color: #d32f2f;
   color: white;
 }
-
-/* Progress Bar */
 .mmbpg-progress-bar-container {
   width: 100%;
   background-color: #f3f3f3;
@@ -100,19 +114,28 @@
   color: #555;
   word-break: break-all;
 }
-
 #mmbpg-form.processing {
   opacity: 0.6;
   pointer-events: none;
 }
-
-/* Responsive Design */
 @media screen and (max-width: 782px) {
+  .mmbpg-wrapper h1 {
+    line-height: 1.4;
+  }
+  .mmbpg-wrapper .author-credit {
+    display: block;
+    margin-left: 0;
+    margin-top: 5px;
+  }
   .mmbpg-wrapper .form-table th,
   .mmbpg-wrapper .form-table td {
     display: block;
     width: 100%;
     padding: 10px 0;
+  }
+  .mmbpg-wrapper .form-table label {
+    display: inline-block;
+    margin-bottom: 5px;
   }
   .mmbpg-wrapper .form-table th {
     font-weight: 600;
