@@ -13,7 +13,11 @@
  * Domain Path:       /languages
  * Requires at least: 5.0
  * Requires PHP:      7.0
+ * require:   mm-core-bulk-post-generator
+ * 
  */
+
+
 
 // Mencegah akses langsung ke file
 if (! defined('ABSPATH')) {
