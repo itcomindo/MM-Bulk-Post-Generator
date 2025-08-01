@@ -1,10 +1,6 @@
 jQuery(document).ready(function ($) {
-    // Variabel untuk menyimpan state sebelum reset
     let undoState = {};
 
-    // --- FUNGSI-FUNGSI PEMBANTU ---
-
-    // Menampilkan notifikasi
     function showNotice(message, type = 'success') {
         const noticeDiv = $('#mmbpg-notice');
         noticeDiv.removeClass('notice-success notice-error notice-warning notice-info').addClass('notice-' + type);
@@ -12,11 +8,8 @@ jQuery(document).ready(function ($) {
         setTimeout(() => noticeDiv.slideUp(), 5000);
     }
 
-    // Mengambil semua data dari form
     function getFormData() {
         return {
-            activate_schema_default: $('input[name="activate_schema_default"]:checked').length > 0 ? '1' : '0',
-            disable_comments: $('input[name="disable_comments"]:checked').length > 0 ? '1' : '0',
             local_business_target: $('#mmbpg_local_business_target').val(),
             post_title: $('#mmbpg_post_title').val(),
             post_content: (typeof tinymce !== 'undefined' && tinymce.get('mmbpg_post_content')) ? tinymce.get('mmbpg_post_content').getContent() : $('#mmbpg_post_content').val(),
@@ -29,10 +22,7 @@ jQuery(document).ready(function ($) {
         };
     }
 
-    // Mengisi form dengan data
     function populateForm(data) {
-        $('input[name="activate_schema_default"]').prop('checked', data.activate_schema_default == '1');
-        $('input[name="disable_comments"]').prop('checked', data.disable_comments == '1');
         $('#mmbpg_local_business_target').val(data.local_business_target || '');
         $('#mmbpg_post_title').val(data.post_title || '');
         if (typeof tinymce !== 'undefined' && tinymce.get('mmbpg_post_content')) {
@@ -52,7 +42,6 @@ jQuery(document).ready(function ($) {
         checkRequiredFields();
     }
 
-    // Reset semua field di form
     function resetForm() {
         $('#mmbpg-form')[0].reset();
         if (typeof tinymce !== 'undefined' && tinymce.get('mmbpg_post_content')) {
@@ -61,12 +50,9 @@ jQuery(document).ready(function ($) {
         $('.mmbpg-image-gallery').empty();
         $('#mmbpg_featured_images').val('').trigger('change');
         $('input[name="post_category"]').prop('checked', false);
-        $('input[name="activate_schema_default"]').prop('checked', true); // default to checked
-        $('input[name="disable_comments"]').prop('checked', true); // default to checked
         checkRequiredFields();
     }
 
-    // Cek field yang wajib diisi untuk mengaktifkan tombol START
     function checkRequiredFields() {
         let allFilled = true;
         $('.required-field').each(function () {
@@ -83,29 +69,23 @@ jQuery(document).ready(function ($) {
         $('#mmbpg-start-button').prop('disabled', !allFilled);
     }
 
-    // --- EVENT HANDLERS ---
-
     $('.mmbpg-datepicker').datepicker({ dateFormat: 'yy-mm-dd', onSelect: checkRequiredFields });
     $('#mmbpg-form').on('keyup change', 'input, textarea, select', checkRequiredFields);
     if (typeof tinymce !== 'undefined') {
         tinymce.on('addeditor', function (e) {
-            if (e.editor.id === 'mmbpg_post_content') {
-                e.editor.on('keyup change', checkRequiredFields);
-            }
+            if (e.editor.id === 'mmbpg_post_content') { e.editor.on('keyup change', checkRequiredFields); }
         });
     }
     checkRequiredFields();
 
-    // Tombol SIMPAN
     $('#mmbpg-save-button').on('click', function () {
         const button = $(this);
         button.prop('disabled', true).text('Menyimpan...');
-        const settingsData = getFormData();
 
         $.post(mmbpg_ajax_obj.ajax_url, {
             action: 'mmbpg_save_settings',
             nonce: mmbpg_ajax_obj.nonce,
-            settings: settingsData
+            settings: getFormData()
         }, function (response) {
             if (response.success) {
                 showNotice(mmbpg_ajax_obj.i18n.settings_saved, 'success');
@@ -115,11 +95,10 @@ jQuery(document).ready(function ($) {
         }).fail(function () {
             showNotice(mmbpg_ajax_obj.i18n.error_occurred, 'error');
         }).always(function () {
-            button.prop('disabled', false).text('Simpan Pengaturan');
+            button.prop('disabled', false).text('Simpan Template');
         });
     });
 
-    // Tombol RESET
     $('#mmbpg-reset-button').on('click', function () {
         if (!confirm(mmbpg_ajax_obj.i18n.confirm_reset)) return;
         undoState = getFormData();
@@ -130,7 +109,6 @@ jQuery(document).ready(function ($) {
         $('#mmbpg-undo-reset-button').show();
     });
 
-    // Tombol UNDO RESET
     $('#mmbpg-undo-reset-button').on('click', function () {
         populateForm(undoState);
         undoState = {};
@@ -139,7 +117,6 @@ jQuery(document).ready(function ($) {
         showNotice('Reset dibatalkan.', 'info');
     });
 
-    // Checkbox HAPUS DATA SAAT UNINSTALL
     $('#mmbpg_erase_data_on_uninstall').on('change', function () {
         const isChecked = $(this).is(':checked') ? 'yes' : 'no';
         $.post(mmbpg_ajax_obj.ajax_url, {
@@ -149,7 +126,6 @@ jQuery(document).ready(function ($) {
         });
     });
 
-    // Logika Media Uploader
     let mediaUploader;
     $('#mmbpg-upload-image-button').on('click', function (e) {
         e.preventDefault();
@@ -162,14 +138,11 @@ jQuery(document).ready(function ($) {
             let image_ids = $('#mmbpg_featured_images').val() ? $('#mmbpg_featured_images').val().split(',').filter(id => id) : [];
 
             attachments.forEach(function (attachment) {
-                if (!image_ids.includes(attachment.id.toString())) {
-                    image_ids.push(attachment.id.toString());
-                }
+                if (!image_ids.includes(attachment.id.toString())) { image_ids.push(attachment.id.toString()); }
             });
 
             $('#mmbpg_featured_images').val(image_ids.join(','));
 
-            // Re-render gallery
             $('.mmbpg-image-gallery').empty();
             image_ids.forEach(function (id) {
                 const attachment = attachments.find(att => att.id.toString() === id);
@@ -195,7 +168,6 @@ jQuery(document).ready(function ($) {
     });
 
 
-    // Tombol START GENERATE (Auto-save)
     $('#mmbpg-form').on('submit', function (e) {
         e.preventDefault();
 
@@ -207,10 +179,10 @@ jQuery(document).ready(function ($) {
             if (response.success) {
                 startGenerationProcess();
             } else {
-                showNotice('Gagal menyimpan pengaturan sebelum memulai. Proses dibatalkan.', 'error');
+                showNotice('Gagal menyimpan template sebelum memulai. Proses dibatalkan.', 'error');
             }
         }).fail(function () {
-            showNotice('Error koneksi saat menyimpan pengaturan. Proses dibatalkan.', 'error');
+            showNotice('Error koneksi saat menyimpan template. Proses dibatalkan.', 'error');
         });
     });
 
@@ -242,12 +214,8 @@ jQuery(document).ready(function ($) {
                 return;
             }
 
-            // Kirim semua data yang relevan dari form
             const ajaxData = {
-                action: 'mmbpg_start_generation',
-                nonce: mmbpg_ajax_obj.nonce,
-                index: index,
-                ...generationData
+                action: 'mmbpg_start_generation', nonce: mmbpg_ajax_obj.nonce, index: index, ...generationData
             };
 
             $.post(mmbpg_ajax_obj.ajax_url, ajaxData, function (response) {

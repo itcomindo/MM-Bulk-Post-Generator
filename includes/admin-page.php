@@ -2,11 +2,11 @@
 // Mengambil data pengaturan yang tersimpan
 global $wpdb;
 $settings = $wpdb->get_row("SELECT * FROM " . MMBPG_TABLE_NAME . " WHERE id = 1", ARRAY_A);
-if (!$settings) $settings = []; // hindari error jika null
+if (!$settings) $settings = [];
 
-// Menetapkan nilai default
-$activate_schema_default = isset($settings['activate_schema_default']) ? (bool)$settings['activate_schema_default'] : true;
-$disable_comments = isset($settings['disable_comments']) ? (bool)$settings['disable_comments'] : true;
+// Mengambil setting dari plugin Core, jika ada
+$activate_schema_default = get_option('mmcbpg_activate_schema_default', true);
+$disable_comments = get_option('mmcbpg_disable_comments_default', true);
 $erase_on_uninstall = get_option('mmbpg_erase_data_on_uninstall', 'no');
 
 $local_business_target = $settings['local_business_target'] ?? '';
@@ -33,30 +33,22 @@ $seo_lb_phone = $settings['seo_lb_phone'] ?? '0822-3356-6320';
     <form id="mmbpg-form">
         <div id="mmbpg-notice" class="notice" style="display:none;"></div>
 
-        <!-- PENGATURAN GLOBAL DIPINDAHKAN KE ATAS -->
+        <!-- Pengaturan ini hanya mengontrol data yang akan dihapus oleh plugin INI SAJA -->
         <div class="mmbpg-global-settings">
-            <h2><?php _e('Pengaturan Global', 'mm-bulk-post-generator'); ?></h2>
+            <h2><?php _e('Pengaturan Plugin Generator', 'mm-bulk-post-generator'); ?></h2>
             <table class="form-table">
                 <tr valign="top">
-                    <th scope="row"><?php _e('Opsi Default', 'mm-bulk-post-generator'); ?></th>
+                    <th scope="row"><?php _e('Opsi Uninstall', 'mm-bulk-post-generator'); ?></th>
                     <td>
-                        <fieldset>
-                            <label><input type="checkbox" name="activate_schema_default" value="1" <?php checked($activate_schema_default); ?>> <?php _e('Aktifkan Schema Local Business secara default untuk post baru', 'mm-bulk-post-generator'); ?></label><br>
-                            <label><input type="checkbox" name="disable_comments" value="1" <?php checked($disable_comments); ?>> <?php _e('Nonaktifkan komentar secara default untuk post baru', 'mm-bulk-post-generator'); ?></label>
-                        </fieldset>
-                    </td>
-                </tr>
-                <tr valign="top">
-                    <th scope="row"><?php _e('Pengaturan Plugin', 'mm-bulk-post-generator'); ?></th>
-                    <td>
-                        <label><input type="checkbox" id="mmbpg_erase_data_on_uninstall" name="erase_on_uninstall" value="yes" <?php checked($erase_on_uninstall, 'yes'); ?>> <?php _e('Hapus semua data plugin ini saat uninstall.', 'mm-bulk-post-generator'); ?></label>
-                        <p class="description"><?php _e('Peringatan: Aksi ini akan menghapus tabel template Anda secara permanen.', 'mm-bulk-post-generator'); ?></p>
+                        <label><input type="checkbox" id="mmbpg_erase_data_on_uninstall" name="erase_on_uninstall" value="yes" <?php checked($erase_on_uninstall, 'yes'); ?>> <?php _e('Hapus tabel template saat plugin ini di-uninstall.', 'mm-bulk-post-generator'); ?></label>
+                        <p class="description"><?php _e('Ini tidak akan menghapus custom field pada post.', 'mm-bulk-post-generator'); ?></p>
                     </td>
                 </tr>
             </table>
         </div>
 
         <h2><?php _e('Template Generator Post', 'mm-bulk-post-generator'); ?></h2>
+        <p class="description"><?php _e('Pengaturan default untuk Schema dan Komentar dikelola oleh plugin MM CORE.', 'mm-bulk-post-generator'); ?></p>
         <table class="form-table">
             <tr valign="top">
                 <th scope="row">
@@ -124,8 +116,6 @@ Bandung,Jawa Barat,45457"><?php echo esc_textarea($local_business_target); ?></t
                             foreach ($categories as $category) {
                                 printf('<label><input type="radio" name="post_category" value="%d" %s> %s</label><br>', esc_attr($category->term_id), checked($selected_category, $category->term_id, false), esc_html($category->name));
                             }
-                        } else {
-                            _e('Tidak ada kategori. Buat satu terlebih dahulu.', 'mm-bulk-post-generator');
                         }
                         ?>
                     </fieldset>
@@ -148,7 +138,7 @@ Bandung,Jawa Barat,45457"><?php echo esc_textarea($local_business_target); ?></t
         <!-- Tombol Aksi -->
         <div class="mmbpg-actions">
             <button id="mmbpg-start-button" class="button button-primary" disabled><?php _e('START GENERATE', 'mm-bulk-post-generator'); ?></button>
-            <button type="button" id="mmbpg-save-button" class="button button-save"><?php _e('Simpan Pengaturan', 'mm-bulk-post-generator'); ?></button>
+            <button type="button" id="mmbpg-save-button" class="button button-save"><?php _e('Simpan Template', 'mm-bulk-post-generator'); ?></button>
             <button type="button" id="mmbpg-reset-button" class="button button-reset"><?php _e('Reset Form', 'mm-bulk-post-generator'); ?></button>
             <button type="button" id="mmbpg-undo-reset-button" class="button button-secondary" style="display:none;"><?php _e('Undo Reset', 'mm-bulk-post-generator'); ?></button>
         </div>

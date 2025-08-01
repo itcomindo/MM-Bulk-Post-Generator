@@ -1,7 +1,7 @@
 <?php
 if (! defined('ABSPATH')) exit;
 
-// Hook untuk menyimpan pengaturan form
+// Hook untuk menyimpan template form
 add_action('wp_ajax_mmbpg_save_settings', 'mmbpg_handle_save_settings');
 
 // Hook untuk menyimpan opsi uninstall
@@ -22,7 +22,7 @@ function mmbpg_handle_save_settings()
     $table_name = MMBPG_TABLE_NAME;
     $settings = isset($_POST['settings']) ? $_POST['settings'] : [];
 
-    // Sanitasi data termasuk field baru
+    // Sanitasi data template
     $data = [
         'local_business_target' => sanitize_textarea_field($settings['local_business_target'] ?? ''),
         'post_title'            => sanitize_text_field($settings['post_title'] ?? ''),
@@ -33,22 +33,13 @@ function mmbpg_handle_save_settings()
         'post_category'         => intval($settings['post_category'] ?? 0),
         'post_tags'             => sanitize_textarea_field($settings['post_tags'] ?? ''),
         'seo_lb_phone'          => sanitize_text_field($settings['seo_lb_phone'] ?? ''),
-        'disable_comments'      => ($settings['disable_comments'] ?? '0') === '1' ? 1 : 0,
-        'activate_schema_default' => ($settings['activate_schema_default'] ?? '0') === '1' ? 1 : 0,
     ];
-
-    // Tambah/Update kolom 'activate_schema_default' di DB jika belum ada
-    // Ini adalah praktek yang baik untuk pembaruan plugin
-    $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM {$table_name} LIKE %s", 'activate_schema_default'));
-    if (empty($column_exists)) {
-        $wpdb->query("ALTER TABLE {$table_name} ADD activate_schema_default TINYINT(1) NOT NULL DEFAULT 1");
-    }
 
     $where = ['id' => 1];
     $result = $wpdb->update($table_name, $data, $where);
 
     if ($result === false) {
-        wp_send_json_error(['message' => 'Gagal menyimpan ke database. Error: ' . $wpdb->last_error]);
+        wp_send_json_error(['message' => 'Gagal menyimpan template ke database.']);
     }
 
     wp_send_json_success();
@@ -71,24 +62,26 @@ function mmbpg_handle_ajax_request()
 {
     check_ajax_referer('mmbpg_ajax_nonce', 'nonce');
     if (! current_user_can('publish_posts')) {
-        wp_send_json_error(['message' => 'Anda tidak memiliki izin untuk mempublikasikan post.']);
+        wp_send_json_error(['message' => 'Anda tidak memiliki izin.']);
     }
 
-    // Ambil data, termasuk setting global baru dari form
+    // Ambil data dari form
     $params = [
-        'index'                   => isset($_POST['index']) ? intval($_POST['index']) : 0,
-        'local_business_target'   => isset($_POST['local_business_target']) ? sanitize_textarea_field($_POST['local_business_target']) : '',
-        'post_title'              => isset($_POST['post_title']) ? sanitize_text_field($_POST['post_title']) : '',
-        'post_content'            => isset($_POST['post_content']) ? wp_kses_post($_POST['post_content']) : '',
-        'featured_images'         => isset($_POST['featured_images']) ? array_map('intval', explode(',', sanitize_text_field($_POST['featured_images']))) : [],
-        'start_date'              => isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '',
-        'end_date'                => isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '',
-        'post_category'           => isset($_POST['post_category']) ? intval($_POST['post_category']) : 0,
-        'post_tags'               => isset($_POST['post_tags']) ? sanitize_text_field($_POST['post_tags']) : '',
-        'seo_lb_phone'            => isset($_POST['seo_lb_phone']) ? sanitize_text_field($_POST['seo_lb_phone']) : '',
-        'disable_comments'        => isset($_POST['disable_comments']) && $_POST['disable_comments'] === '1' ? 'closed' : 'open',
-        'activate_schema_default' => isset($_POST['activate_schema_default']) && $_POST['activate_schema_default'] === '1' ? 'yes' : 'no',
+        'index'                 => isset($_POST['index']) ? intval($_POST['index']) : 0,
+        'local_business_target' => isset($_POST['local_business_target']) ? sanitize_textarea_field($_POST['local_business_target']) : '',
+        'post_title'            => isset($_POST['post_title']) ? sanitize_text_field($_POST['post_title']) : '',
+        'post_content'          => isset($_POST['post_content']) ? wp_kses_post($_POST['post_content']) : '',
+        'featured_images'       => isset($_POST['featured_images']) ? array_map('intval', explode(',', sanitize_text_field($_POST['featured_images']))) : [],
+        'start_date'            => isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '',
+        'end_date'              => isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '',
+        'post_category'         => isset($_POST['post_category']) ? intval($_POST['post_category']) : 0,
+        'post_tags'             => isset($_POST['post_tags']) ? sanitize_text_field($_POST['post_tags']) : '',
+        'seo_lb_phone'          => isset($_POST['seo_lb_phone']) ? sanitize_text_field($_POST['seo_lb_phone']) : '',
     ];
+
+    // Ambil setting default dari plugin Core
+    $disable_comments = get_option('mmcbpg_disable_comments_default', true) ? 'closed' : 'open';
+    $activate_schema_default = get_option('mmcbpg_activate_schema_default', true);
 
     $locations = array_filter(explode("\n", $params['local_business_target']));
     if (!isset($locations[$params['index']])) {
@@ -126,7 +119,7 @@ function mmbpg_handle_ajax_request()
         'post_category' => [$params['post_category']],
         'post_date'     => $random_post_date,
         'post_date_gmt' => get_gmt_from_date($random_post_date),
-        'comment_status' => $params['disable_comments'],
+        'comment_status' => $disable_comments,
         'ping_status'   => 'closed',
     ];
 
@@ -142,6 +135,7 @@ function mmbpg_handle_ajax_request()
         set_post_thumbnail($post_id, $random_image_id);
     }
 
+    // Simpan semua data ke post meta
     update_post_meta($post_id, 'seo_kota', $kota);
     update_post_meta($post_id, 'seo_provinsi', $provinsi);
     update_post_meta($post_id, 'seo_kodepos', $kodepos);
@@ -153,8 +147,8 @@ function mmbpg_handle_ajax_request()
     update_post_meta($post_id, 'seo_total_average_rating', $total_avg_rating);
     update_post_meta($post_id, 'pricerange', $pricerange);
 
-    // Set meta untuk aktivasi schema berdasarkan setting default dari form
-    if ($params['activate_schema_default'] === 'yes') {
+    // Set meta untuk aktivasi schema berdasarkan setting default dari plugin Core
+    if ($activate_schema_default) {
         update_post_meta($post_id, '_mmbpg_activate_schema', 'yes');
     }
 

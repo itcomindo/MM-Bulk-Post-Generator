@@ -13,7 +13,7 @@ if ($erase_on_uninstall === 'yes') {
     // Definisikan nama tabel
     $table_name = $wpdb->prefix . 'mmbpg_settings';
 
-    // Hapus tabel kustom
+    // Hapus tabel kustom untuk menyimpan template
     $wpdb->query("DROP TABLE IF EXISTS {$table_name}");
 
     // Hapus opsi dari tabel wp_options
